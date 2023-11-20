@@ -27,10 +27,10 @@ class Content {
   });
 
   Content.fromJson(Map<String, dynamic> json)
-      : menuLines = json['menuLines'],
-        selectedDate = json['selectedDate'],
-        selectedLocation = json['selectedLocation'],
-        time = json['time'];
+    : menuLines = (json['menuLines'] as List<dynamic>).map((e) => e.toString()).toList(),
+      selectedDate = json['selectedDate'],
+      selectedLocation = json['selectedLocation'],
+      time = json['time'];
 
   Map<String, dynamic> toJson() => {
         'menuLines': menuLines,
@@ -78,53 +78,89 @@ class InputScreenState extends State<InputScreen> {
   String? selectedLocation;
   String? time;
 
-  final CollectionReference _menu =
-      FirebaseFirestore.instance.collection('Menu');
+  final CollectionReference<Map<String, dynamic>> _menu =
+    FirebaseFirestore.instance.collection('Menu');
 
   Future getData() async {
-      final response = await http.get(
-        Uri.parse(
-            'https://www.kumoh.ac.kr/ko/restaurant04.do?mode=menuList&srDt=${DateFormat('yyyy').format(widget.selectedDate)}-${DateFormat('MM').format(widget.selectedDate)}-${DateFormat('dd').format(widget.selectedDate)}'),
-        headers: {
-          'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36',
-        },
-      );
-      if (response.statusCode == 200) {
-        final document = parse(response.body);
-        final foodElements = document.querySelectorAll(
-            ".menu-list-box table tbody tr:nth-child(1) td:nth-child(${widget.selectedDate.weekday * 2 - 1})");
+  // 현재 날짜를 가져옴
+  final currentDate = widget.selectedDate;
 
-        if (foodElements.isNotEmpty) {
-          final foodMenu = foodElements[0].text;
-          final modifiedFoodMenu = foodMenu.replaceAll(RegExp(r'\s{2,}'), '\n');
-          List<String> foodMenuLines = modifiedFoodMenu.split('\n');
-          foodMenuLines.removeWhere((element) => element.trim().isEmpty);
-          menuLines = foodMenuLines;
-          selectedDate =
-              DateFormat('MM-dd').format(widget.selectedDate);
-          selectedLocation = "snack";
-          time = "none";
-        }
-        else{
-          menuLines = ["오","류"];
-          selectedDate =
-              DateFormat('MM-dd').format(widget.selectedDate);
-          selectedLocation = "snack";
-          time = "none";
-        }
+  // 현재 날짜가 포함된 주의 월요일을 찾음
+  DateTime monday = currentDate.subtract(Duration(days: currentDate.weekday - 1));
+
+  // 월요일부터 금요일까지의 날짜를 담을 리스트
+  List<DateTime> weekdays = [];
+
+  // 주의 월요일부터 금요일까지의 날짜를 리스트에 추가
+  for (int i = 0; i < 5; i++) {
+    weekdays.add(monday.add(Duration(days: i)));
+  }
+
+  // 주의 월요일부터 금요일까지 각 날짜에 대한 처리
+  for (DateTime date in weekdays) {
+    final yyyy = DateFormat('yyyy').format(date);
+    final mm = DateFormat('MM').format(date);
+    final dd = DateFormat('dd').format(date);
+
+    final response = await http.get(
+      Uri.parse(
+          'https://www.kumoh.ac.kr/ko/restaurant04.do?mode=menuList&srDt=${yyyy}-${mm}-${dd}'),
+      headers: {
+        'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final document = parse(response.body);
+      final foodElements = document.querySelectorAll(
+          ".menu-list-box table tbody tr:nth-child(1) td:nth-child(${date.weekday * 2 - 1})");
+
+      if (foodElements.isNotEmpty) {
+        final foodMenu = foodElements[0].text;
+        final modifiedFoodMenu = foodMenu.replaceAll(RegExp(r'\s{2,}'), '\n');
+        List<String> foodMenuLines = modifiedFoodMenu.split('\n');
+        foodMenuLines.removeWhere((element) => element.trim().isEmpty);
+        menuLines = foodMenuLines;
+        selectedDate = DateFormat('MM-dd').format(date);
+        selectedLocation = "snack";
+        time = "none";
+
+        // 각 날짜에 대한 데이터를 Firestore에 추가
         await _menu.add({
           'menuLines': menuLines,
           'selectedDate': selectedDate,
           'selectedLocation': selectedLocation,
           'time': time,
         });
-
       }
+    }
   }
+}
+List<Content> todayContents = [];
 
+  Future<void> getTodayMenu() async {
+  final today = DateFormat('MM-dd').format(widget.selectedDate);
+
+  final QuerySnapshot<Map<String, dynamic>> snapshot = await _menu
+      .where('selectedDate', isEqualTo: today)
+      .get();
+
+  if (snapshot.docs.isNotEmpty) {
+    setState(() {
+      todayContents = snapshot.docs
+          .map((QueryDocumentSnapshot<Map<String, dynamic>> doc) {
+        return Content.fromJson(doc.data());
+      }).toList();
+    });
+  } else {
+    print('No data available for today.');
+  }
+}
+  
   @override
   Widget build(BuildContext context) {
+    getTodayMenu();
     return Scaffold(
       appBar: AppBar(
         title: Text('Store, Storage Test'),
@@ -133,7 +169,21 @@ class InputScreenState extends State<InputScreen> {
             icon: const Icon(Icons.photo_album),
             onPressed: getData,
           ),
+          IconButton(
+            icon: const Icon(Icons.file_download),
+            onPressed: getTodayMenu,
+          ),
         ],
+      ),
+      body: ListView.builder(
+        itemCount: todayContents.length,
+        itemBuilder: (context, index) {
+          final content = todayContents[index];
+          return ListTile(
+            title: Text('Date: ${content.selectedDate}'),
+            subtitle: Text('Menu Lines: ${content.menuLines}'),
+          );
+        },
       ),
     );
   }
