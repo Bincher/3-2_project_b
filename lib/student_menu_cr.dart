@@ -17,7 +17,7 @@ class Content {
   List<String> menuLines;
   String selectedDate;
   String selectedLocation;
-  String time;
+  int time;
 
   Content({
     required this.menuLines,
@@ -76,7 +76,7 @@ class InputScreenState extends State<InputScreen> {
   List<String>? menuLines;
   String? selectedDate;
   String? selectedLocation;
-  String? time;
+  int? time;
 
   final CollectionReference<Map<String, dynamic>> _menu =
     FirebaseFirestore.instance.collection('Menu');
@@ -124,7 +124,7 @@ class InputScreenState extends State<InputScreen> {
         menuLines = foodMenuLines;
         selectedDate = DateFormat('MM-dd').format(date);
         selectedLocation = "snack";
-        time = "none";
+        time = 1;
 
         // 각 날짜에 대한 데이터를 Firestore에 추가
         await _menu.add({
