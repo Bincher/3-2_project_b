@@ -47,6 +47,8 @@ dependencies:
   flutter_local_notifications: ^16.1.0
   workmanager: ^0.5.2
   logging: ^1.2.0
+  table_calendar: ^3.0.9
+  shared_preferences: ^2.2.2
 
 dev_dependencies:
   flutter_test:
@@ -64,6 +66,14 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+  assets:
+    - assets/alert.png
+    - assets/calendar.png
+    - assets/navi.png
+    - assets/settings.png
+    - images/img_cafeteria_out1.jpg
+    - images/img_cafeteria_out.jpg
+    - images/img_skyview.png
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
