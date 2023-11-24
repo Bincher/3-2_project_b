@@ -1,3 +1,4 @@
+// main.dart
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_fb/firebase_options.dart';
@@ -6,11 +7,9 @@ import 'student_menu.dart';
 import 'snack_bar_menu.dart';
 import 'staff_menu.dart';
 
-void main() async{
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform
-    );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const MaterialApp(
     home: MyHomePage(title: '학식 캘린더'),
   ));
@@ -28,14 +27,13 @@ class _MyHomePageState extends State<MyHomePage> {
   DateTime? _selectedDate;
   String? formattedDate;
   int _currentIndex = 0;
-  DateTime? selectedDate = DateTime.now();  //날짜 클릭하면 파란색 동그라미 쓸려고 추가함
+  DateTime? selectedDate = DateTime.now(); //날짜 클릭하면 파란색 동그라미 쓸려고 추가함
   void _toggleButtons(DateTime selectedDate, DateTime focusedDate) {
     setState(() {
       showButtons = true; // 학식, 교직, 분식 버튼이 표시하도록 변경
       _selectedDate = selectedDate;
     });
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +56,8 @@ class _MyHomePageState extends State<MyHomePage> {
             headerStyle: const HeaderStyle(
               formatButtonVisible: false,
               titleCentered: true,
-              titleTextStyle: TextStyle(fontWeight: FontWeight.w700, fontSize: 16.0),
+              titleTextStyle:
+                  TextStyle(fontWeight: FontWeight.w700, fontSize: 16.0),
             ),
             calendarStyle: const CalendarStyle(
               selectedDecoration: BoxDecoration(
@@ -101,7 +100,8 @@ class _MyHomePageState extends State<MyHomePage> {
                   builder: (context) => const AlarmListPage(),
                 ),
               );
-            } else if (index == 2) { // 추가: 지도 아이콘을 누르면 지도 페이지로 이동
+            } else if (index == 2) {
+              // 추가: 지도 아이콘을 누르면 지도 페이지로 이동
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -131,7 +131,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget _buildButton(String label, double width) {
     return SizedBox(
-      
       width: width,
       child: ElevatedButton(
         onPressed: () {
@@ -140,7 +139,8 @@ class _MyHomePageState extends State<MyHomePage> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => MyListWidget(selectedDate: _selectedDate!), // 학식당 메뉴 보기 기능
+                builder: (context) =>
+                    MyListWidget(selectedDate: _selectedDate!), // 학식당 메뉴 보기 기능
               ),
             );
           } else if (label == '분식당') {
@@ -148,15 +148,17 @@ class _MyHomePageState extends State<MyHomePage> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => MyListWidget3(selectedDate: _selectedDate!), // 분식당 메뉴 보기 기능
+                builder: (context) =>
+                    MyListWidget3(selectedDate: _selectedDate!), // 분식당 메뉴 보기 기능
               ),
             );
-          }else if (label == '교직원') {
+          } else if (label == '교직원') {
             // '교직원' 버튼을 눌렀을 때 화면을 전환
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => MyListWidget2(selectedDate: _selectedDate!), // 교직원 메뉴 보기 기능
+                builder: (context) =>
+                    MyListWidget2(selectedDate: _selectedDate!), // 교직원 메뉴 보기 기능
               ),
             );
           }
@@ -165,6 +167,7 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
     );
   }
+
   void onDaySelected(DateTime selectedDate, DateTime focusedDate) {
     setState(() {
       _selectedDate = selectedDate;
@@ -240,7 +243,7 @@ class _LocationPageState extends State<LocationPage> {
       child: Column(
         children: [
           AspectRatio(
-            aspectRatio: 16/9,
+            aspectRatio: 16 / 9,
             child: Image.asset(
               imagePath,
               fit: BoxFit.cover,
@@ -282,8 +285,9 @@ class _AlarmListPageState extends State<AlarmListPage> {
         _foundAlarms = List.from(_alarmList);
       } else {
         _foundAlarms = _alarmList
-            .where((menu) =>
-            menu["menu"].toLowerCase().contains(enteredKeyword.toLowerCase()))
+            .where((menu) => menu["menu"]
+                .toLowerCase()
+                .contains(enteredKeyword.toLowerCase()))
             .toList();
       }
     });
@@ -347,40 +351,40 @@ class _AlarmListPageState extends State<AlarmListPage> {
             Expanded(
               child: _foundAlarms.isNotEmpty
                   ? ListView.builder(
-                itemCount: _foundAlarms.length,
-                itemBuilder: (context, index) {
-                  final alarm = _foundAlarms[index];
-                  return Card(
-                    key: ValueKey(alarm["id"]),
-                    color: Colors.blue[100],
-                    elevation: 4,
-                    margin: const EdgeInsets.symmetric(vertical: 10),
-                    child: ListTile(
-                      title: Text(
-                        alarm['menu'],
-                        style: const TextStyle(
-                          fontSize: 18,
-                        ),
-                      ),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete),
-                        onPressed: () {
-                          setState(() {
-                            _foundAlarms.remove(alarm);
-                            _alarmList.remove(alarm);
-                          });
-                        },
+                      itemCount: _foundAlarms.length,
+                      itemBuilder: (context, index) {
+                        final alarm = _foundAlarms[index];
+                        return Card(
+                          key: ValueKey(alarm["id"]),
+                          color: Colors.blue[100],
+                          elevation: 4,
+                          margin: const EdgeInsets.symmetric(vertical: 10),
+                          child: ListTile(
+                            title: Text(
+                              alarm['menu'],
+                              style: const TextStyle(
+                                fontSize: 18,
+                              ),
+                            ),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.delete),
+                              onPressed: () {
+                                setState(() {
+                                  _foundAlarms.remove(alarm);
+                                  _alarmList.remove(alarm);
+                                });
+                              },
+                            ),
+                          ),
+                        );
+                      },
+                    )
+                  : const Text(
+                      '추가한 메뉴가 없어요 :(\n좋아하는 메뉴를 추가해주세요',
+                      style: TextStyle(
+                        fontSize: 10,
                       ),
                     ),
-                  );
-                },
-              )
-                  : const Text(
-                '추가한 메뉴가 없어요 :(\n좋아하는 메뉴를 추가해주세요',
-                style: TextStyle(
-                  fontSize: 10,
-                ),
-              ),
             ),
           ],
         ),

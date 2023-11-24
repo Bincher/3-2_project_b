@@ -1,8 +1,5 @@
-// ignore_for_file: depend_on_referenced_packages
-
-
+// student_menu_cr.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:html/parser.dart';
@@ -24,26 +21,24 @@ class Content {
   });
 
   Content.fromJson(Map<String, dynamic> json)
-    : menuLines = (json['menuLines'] as List<dynamic>).map((e) => e.toString()).toList(),
-      selectedDate = json['selectedDate'],
-      selectedLocation = json['selectedLocation'],
-      time = json['time'];
+      : menuLines = (json['menuLines'] as List<dynamic>)
+            .map((e) => e.toString())
+            .toList(),
+        selectedDate = json['selectedDate'],
+        selectedLocation = json['selectedLocation'],
+        time = json['time'];
 
   Map<String, dynamic> toJson() => {
         'menuLines': menuLines,
         'selectedDate': selectedDate,
         'selectedLocation': selectedLocation,
-        'time' : time,
+        'time': time,
       };
 }
 
-
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform
-    );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(MyApp());
 }
 
@@ -71,100 +66,98 @@ class InputScreen extends StatefulWidget {
 }
 
 class InputScreenState extends State<InputScreen> {
-  
   List<String>? menuLines;
   String? selectedDate;
   String? selectedLocation;
   int? time;
-  
 
   final CollectionReference<Map<String, dynamic>> _menu =
-    FirebaseFirestore.instance.collection('Menu');
+      FirebaseFirestore.instance.collection('Menu');
 
+  Future getData() async {
+    List<String> Locations = ["student", "staff", "snack"];
+    var checkLocation = 0;
+    final currentDate = widget.selectedDate;
+    DateTime monday =
+        currentDate.subtract(Duration(days: currentDate.weekday - 1));
+    List<DateTime> weekdays = [];
+    for (int i = 0; i < 5; i++) {
+      weekdays.add(monday.add(Duration(days: i)));
+    }
 
-    Future getData() async {
-      List<String> Locations = ["student", "staff", "snack"];
-      var checkLocation = 0;
-      final currentDate = widget.selectedDate;
-      DateTime monday = currentDate.subtract(Duration(days: currentDate.weekday - 1));
-      List<DateTime> weekdays = [];
-      for (int i = 0; i < 5; i++) {
-        weekdays.add(monday.add(Duration(days: i)));
+    for (String location in Locations) {
+      if (location == "student") {
+        checkLocation = 1;
+      } else if (location == "staff") {
+        checkLocation = 2;
+      } else if (location == "snack") {
+        checkLocation = 4;
       }
-      
-      for (String location in Locations) {
-        if (location == "student"){
-          checkLocation = 1;
-        }else if(location == "staff"){
-          checkLocation = 2;
-        }else if(location == "snack"){
-          checkLocation = 4;
-        }
-        
-        for (DateTime date in weekdays) {
-          final yyyy = DateFormat('yyyy').format(date);
-          final mm = DateFormat('MM').format(date);
-          final dd = DateFormat('dd').format(date);
-          
 
-          for (int time = 1; time <= 2; time++) {
-            if (time == 2 && checkLocation == 4){
-              break;
-            }
-            
-            final QuerySnapshot<Map<String, dynamic>> existingData = await _menu
-              .where('selectedDate', isEqualTo: DateFormat('MM-dd').format(date))
+      for (DateTime date in weekdays) {
+        final yyyy = DateFormat('yyyy').format(date);
+        final mm = DateFormat('MM').format(date);
+        final dd = DateFormat('dd').format(date);
+
+        for (int time = 1; time <= 2; time++) {
+          if (time == 2 && checkLocation == 4) {
+            break;
+          }
+
+          final QuerySnapshot<Map<String, dynamic>> existingData = await _menu
+              .where('selectedDate',
+                  isEqualTo: DateFormat('MM-dd').format(date))
               .where('selectedLocation', isEqualTo: location)
               .where('time', isEqualTo: time)
               .get();
-            
-            if (existingData.docs.isEmpty) {
-              final response = await http.get(
-                Uri.parse(
-                  'https://www.kumoh.ac.kr/ko/restaurant0${checkLocation}.do?mode=menuList&srDt=${yyyy}-${mm}-${dd}'),
-                headers: {
-                  'User-Agent':
-                      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36',
-                  },
-                );
 
-              if (response.statusCode == 200) {
-                final document = parse(response.body);
-                final foodElements = document.querySelectorAll(
+          if (existingData.docs.isEmpty) {
+            final response = await http.get(
+              Uri.parse(
+                  'https://www.kumoh.ac.kr/ko/restaurant0${checkLocation}.do?mode=menuList&srDt=${yyyy}-${mm}-${dd}'),
+              headers: {
+                'User-Agent':
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36',
+              },
+            );
+
+            if (response.statusCode == 200) {
+              final document = parse(response.body);
+              final foodElements = document.querySelectorAll(
                   ".menu-list-box table tbody tr:nth-child(${time * 2 - 1}) td:nth-child(${date.weekday * 2 - 1})");
 
-                if (foodElements.isNotEmpty) {
-                  final foodMenu = foodElements[0].text;
-                  final modifiedFoodMenu = foodMenu.replaceAll(RegExp(r'\s{2,}'), '\n');
-                  List<String> foodMenuLines = modifiedFoodMenu.split('\n');
-                  foodMenuLines.removeWhere((element) => element.trim().isEmpty);
-                  menuLines = foodMenuLines;
-                  selectedDate = DateFormat('MM-dd').format(date);
-                  selectedLocation = location;
+              if (foodElements.isNotEmpty) {
+                final foodMenu = foodElements[0].text;
+                final modifiedFoodMenu =
+                    foodMenu.replaceAll(RegExp(r'\s{2,}'), '\n');
+                List<String> foodMenuLines = modifiedFoodMenu.split('\n');
+                foodMenuLines.removeWhere((element) => element.trim().isEmpty);
+                menuLines = foodMenuLines;
+                selectedDate = DateFormat('MM-dd').format(date);
+                selectedLocation = location;
 
-                  // 각 날짜에 대한 데이터를 Firestore에 추가
-                  await _menu.add({
-                    'menuLines': menuLines,
-                    'selectedDate': selectedDate,
-                    'selectedLocation': selectedLocation,
-                    'time': time,
-                    });
-                  }
-                }
+                // 각 날짜에 대한 데이터를 Firestore에 추가
+                await _menu.add({
+                  'menuLines': menuLines,
+                  'selectedDate': selectedDate,
+                  'selectedLocation': selectedLocation,
+                  'time': time,
+                });
               }
             }
           }
         }
       }
+    }
+  }
 
-    List<Content> todayContents = [];
+  List<Content> todayContents = [];
 
-    Future<void> getTodayMenu() async {
+  Future<void> getTodayMenu() async {
     final today = DateFormat('MM-dd').format(widget.selectedDate);
 
-    final QuerySnapshot<Map<String, dynamic>> snapshot = await _menu
-      .where('selectedDate', isEqualTo: today)
-      .get();
+    final QuerySnapshot<Map<String, dynamic>> snapshot =
+        await _menu.where('selectedDate', isEqualTo: today).get();
 
     if (snapshot.docs.isNotEmpty) {
       setState(() {
@@ -177,33 +170,36 @@ class InputScreenState extends State<InputScreen> {
       print('No data available for today.');
     }
   }
-  
+
   Future deleteAllData() async {
-  // 현재 날짜를 가져옴
-  final currentDate = widget.selectedDate;
+    // 현재 날짜를 가져옴
+    final currentDate = widget.selectedDate;
 
-  // 현재 날짜가 포함된 주의 월요일을 찾음
-  DateTime monday = currentDate.subtract(Duration(days: currentDate.weekday - 1));
+    // 현재 날짜가 포함된 주의 월요일을 찾음
+    DateTime monday =
+        currentDate.subtract(Duration(days: currentDate.weekday - 1));
 
-  // 월요일부터 금요일까지의 날짜를 담을 리스트
-  List<DateTime> weekdays = [];
+    // 월요일부터 금요일까지의 날짜를 담을 리스트
+    List<DateTime> weekdays = [];
 
-  // 주의 월요일부터 금요일까지의 날짜를 리스트에 추가
-  for (int i = 0; i < 5; i++) {
-    weekdays.add(monday.add(Duration(days: i)));
+    // 주의 월요일부터 금요일까지의 날짜를 리스트에 추가
+    for (int i = 0; i < 5; i++) {
+      weekdays.add(monday.add(Duration(days: i)));
+    }
+
+    // 모든 문서를 삭제
+    for (DateTime date in weekdays) {
+      await _menu
+          .where('selectedDate', isEqualTo: DateFormat('MM-dd').format(date))
+          .get()
+          .then((snapshot) {
+        for (QueryDocumentSnapshot doc in snapshot.docs) {
+          doc.reference.delete();
+        }
+      });
+    }
   }
 
-  // 모든 문서를 삭제
-  for (DateTime date in weekdays) {
-    await _menu.where('selectedDate', isEqualTo: DateFormat('MM-dd').format(date)).get().then((snapshot) {
-      for (QueryDocumentSnapshot doc in snapshot.docs) {
-        doc.reference.delete();
-      }
-    });
-  }
-}
-
-  
   @override
   Widget build(BuildContext context) {
     getTodayMenu();

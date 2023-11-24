@@ -1,20 +1,20 @@
 // menu_fetcher.dart
-
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-
 class MenuFetcher {
-  static Future<Map<String, dynamic>> fetchMenuDataFromFirestore(DateTime selectedDate) async {
+  static Future<Map<String, dynamic>> fetchMenuDataFromFirestore(
+      DateTime selectedDate) async {
     print("go");
     try {
       final today = DateFormat('MM-dd').format(selectedDate);
 
-      final QuerySnapshot<Map<String, dynamic>> snapshot = await FirebaseFirestore.instance
-        .collection('Menu')
-        .where('selectedDate', isEqualTo: today)
-        .where('selectedLocation', isEqualTo: 'snack') // 추가 조건
-        .get();
+      final QuerySnapshot<Map<String, dynamic>> snapshot =
+          await FirebaseFirestore.instance
+              .collection('Menu')
+              .where('selectedDate', isEqualTo: today)
+              .where('selectedLocation', isEqualTo: 'snack') // 추가 조건
+              .get();
 
       if (snapshot.docs.isNotEmpty) {
         final doc = snapshot.docs.first;

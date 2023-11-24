@@ -62,7 +62,10 @@ class MenuDisplayWidget extends StatelessWidget {
             padding: const EdgeInsets.all(8.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
-              children: selectedMenuPrices.map((item) => Text(item, style: TextStyle(fontSize: 16.0, color: Colors.black))).toList(),
+              children: selectedMenuPrices
+                  .map((item) => Text(item,
+                      style: TextStyle(fontSize: 16.0, color: Colors.black)))
+                  .toList(),
             ),
           ),
         ],

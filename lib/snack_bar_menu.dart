@@ -1,12 +1,7 @@
 // snack_bar_menu.dart
-
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'snack_menu_fetcher.dart';
 import 'snack_display_widget.dart'; // Update with the correct import path
-import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   runApp(const MyApp());
@@ -20,8 +15,8 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       home: MyListWidget3(selectedDate: DateTime.now()),
       theme: ThemeData(
-        // your theme data here
-      ),
+          // your theme data here
+          ),
     );
   }
 }
@@ -38,28 +33,33 @@ class MyListWidget3 extends StatefulWidget {
 }
 
 class _MyListWidgetState extends State<MyListWidget3> {
-  Map<String, dynamic> menuData = {'menuLines': ["로딩 중..."], 'selectedLocation': "snack", 'time': "."};
+  Map<String, dynamic> menuData = {
+    'menuLines': ["로딩 중..."],
+    'selectedLocation': "snack",
+    'time': "."
+  };
 
   @override
   void initState() {
     super.initState();
     fetchMenuData();
-    }
-  
+  }
+
   void fetchMenuData() async {
-    try{
-      final data = await MenuFetcher.fetchMenuDataFromFirestore(widget.selectedDate);
-        print("Fetched menu data: $data");
-        setState(() {
-          menuData = data;
-        });
-    }catch (e) {
-        // 에러 발생 시 에러를 추가
-        setState(() {
-          menuData = {'error': '오류: $e'};
-        });
-      }
+    try {
+      final data =
+          await MenuFetcher.fetchMenuDataFromFirestore(widget.selectedDate);
+      print("Fetched menu data: $data");
+      setState(() {
+        menuData = data;
+      });
+    } catch (e) {
+      // 에러 발생 시 에러를 추가
+      setState(() {
+        menuData = {'error': '오류: $e'};
+      });
     }
+  }
 
   @override
   Widget build(BuildContext context) {

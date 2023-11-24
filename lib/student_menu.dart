@@ -1,8 +1,5 @@
-import 'dart:convert';
-
+// student_menu.dart
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:html/parser.dart' show parse;
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -35,17 +32,20 @@ class MyApp extends StatelessWidget {
     );
   }
 }
+
 class MenuFetcher {
-  static Future<Map<String, dynamic>> fetchMenuDataFromFirestore(DateTime selectedDate, int time) async {
+  static Future<Map<String, dynamic>> fetchMenuDataFromFirestore(
+      DateTime selectedDate, int time) async {
     try {
       final today = DateFormat('MM-dd').format(selectedDate);
 
-      final QuerySnapshot<Map<String, dynamic>> snapshot = await FirebaseFirestore.instance
-        .collection('Menu')
-        .where('selectedDate', isEqualTo: today)
-        .where('selectedLocation', isEqualTo: 'student') // 추가 조건
-        .where('time', isEqualTo: time)
-        .get();
+      final QuerySnapshot<Map<String, dynamic>> snapshot =
+          await FirebaseFirestore.instance
+              .collection('Menu')
+              .where('selectedDate', isEqualTo: today)
+              .where('selectedLocation', isEqualTo: 'student') // 추가 조건
+              .where('time', isEqualTo: time)
+              .get();
 
       if (snapshot.docs.isNotEmpty) {
         final doc = snapshot.docs.first;
@@ -60,7 +60,6 @@ class MenuFetcher {
       } else {
         return {'error': '해당 날짜의 메뉴가 존재하지 않습니다.'};
       }
-
     } catch (e) {
       return {'error': '오류: $e'};
     }
@@ -79,8 +78,16 @@ class MyListWidget extends StatefulWidget {
 }
 
 class _MyListWidgetState extends State<MyListWidget> {
-  Map<String, dynamic> menuDataBreakfast = {'menuLines': ["로딩 중..."], 'selectedLocation': "snack", 'time': "."};
-  Map<String, dynamic> menuDataLunch = {'menuLines': ["로딩 중..."], 'selectedLocation': "snack", 'time': "."};
+  Map<String, dynamic> menuDataBreakfast = {
+    'menuLines': ["로딩 중..."],
+    'selectedLocation': "snack",
+    'time': "."
+  };
+  Map<String, dynamic> menuDataLunch = {
+    'menuLines': ["로딩 중..."],
+    'selectedLocation': "snack",
+    'time': "."
+  };
 
   @override
   void initState() {
@@ -90,23 +97,24 @@ class _MyListWidgetState extends State<MyListWidget> {
 
   void fetchMenuData() async {
     try {
-      final dataBreakfast = await MenuFetcher.fetchMenuDataFromFirestore(widget.selectedDate, 1);
-      final dataLunch = await MenuFetcher.fetchMenuDataFromFirestore(widget.selectedDate, 2);
+      final dataBreakfast =
+          await MenuFetcher.fetchMenuDataFromFirestore(widget.selectedDate, 1);
+      final dataLunch =
+          await MenuFetcher.fetchMenuDataFromFirestore(widget.selectedDate, 2);
       print("Fetched menu data: $dataBreakfast");
       print("Fetched menu data: $dataLunch");
       setState(() {
-          menuDataBreakfast = dataBreakfast;
-          menuDataLunch = dataLunch;
+        menuDataBreakfast = dataBreakfast;
+        menuDataLunch = dataLunch;
       });
     } catch (e) {
-        // 에러 발생 시 에러를 추가
-        setState(() {
-          menuDataBreakfast = {'error': '오류: $e'};
-          menuDataLunch = {'error': '오류: $e'};
-        });
-      }
+      // 에러 발생 시 에러를 추가
+      setState(() {
+        menuDataBreakfast = {'error': '오류: $e'};
+        menuDataLunch = {'error': '오류: $e'};
+      });
     }
-
+  }
 
   @override
   Widget build(BuildContext context) {
