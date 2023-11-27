@@ -2,6 +2,7 @@
 
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -37,13 +38,12 @@ class Content {
       };
 }
 
-
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform
     );
+  var fcmToken = await FirebaseMessaging.instance.getToken(vapidKey: "BOeBIiobFfeKVQ3t6ReVyADtG1fotxDYBKPGStWyWFupULdt5w_RloOk56x3z4NqTLoHkM9DGC84rxf4KXVDj_U");  
   runApp(MyApp());
 }
 
