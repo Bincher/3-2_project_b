@@ -1,8 +1,9 @@
 import 'dart:convert';
-
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_fb/firebase_options.dart';
+import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'student_menu.dart';
 import 'snack_bar_menu.dart';
@@ -11,6 +12,34 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../firebase_options.dart';
+
+class Content {
+  List<String> menuLines;
+  String selectedDate;
+  String selectedLocation;
+  int time;
+
+  Content({
+    required this.menuLines,
+    required this.selectedDate,
+    required this.selectedLocation,
+    required this.time,
+  });
+
+  Content.fromJson(Map<String, dynamic> json)
+    : menuLines = (json['menuLines'] as List<dynamic>).map((e) => e.toString()).toList(),
+      selectedDate = json['selectedDate'],
+      selectedLocation = json['selectedLocation'],
+      time = json['time'];
+
+  Map<String, dynamic> toJson() => {
+        'menuLines': menuLines,
+        'selectedDate': selectedDate,
+        'selectedLocation': selectedLocation,
+        'time' : time,
+      };
+}
 
 void main() async{
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,12 +49,11 @@ void main() async{
   
   try {
     _initLocalNotification();
-    await selectedDatePushAlarm();
+    await scheduleWeeklyAlarm(); 
   } catch (e) {
     print('Error scheduling alarm: $e');
   }
   
-
   runApp(const MaterialApp(
     home: MyHomePage(title: '학식 캘린더'),
   ));
@@ -304,7 +332,7 @@ class _AlarmListPageState extends State<AlarmListPage> {
 
   void _loadAlarmData() {
     final List<String>? alarmListJson = _prefs.getStringList('alarmList');
-
+    
     if (alarmListJson != null) {
       // 저장된 알람 목록을 불러와서 업데이트합니다.
       print("_loadAlarmData:${alarmListJson}");
@@ -475,13 +503,10 @@ tz.TZDateTime _timeZoneSetting({
     required int minute,
     required int day,
     required int month,
+    required int year,
   }) {
-    tz.initializeTimeZones();
-    tz.setLocalLocation(tz.getLocation('Asia/Seoul'));
-    tz.TZDateTime _now = tz.TZDateTime.now(tz.local);
     tz.TZDateTime scheduledDate =
-        tz.TZDateTime(tz.local, _now.year, _now.month, _now.day, hour, minute);
-
+        tz.TZDateTime(tz.local, year, month, day, hour, minute);
     return scheduledDate;
   }  
 
@@ -514,26 +539,48 @@ NotificationDetails _details = const NotificationDetails(
       ),
     );  
 
-// Future<void> showPushAlarm() async {
-//     FlutterLocalNotificationsPlugin _localNotification =
-//         FlutterLocalNotificationsPlugin();
+Future<void> scheduleWeeklyAlarm() async {
+  FlutterLocalNotificationsPlugin _localNotification =
+      FlutterLocalNotificationsPlugin();
 
-//     await _localNotification.show(0, 
-//     '로컬 푸시 알림', 
-//     '로컬 푸시 알림 테스트',
-//     _details,
-//     payload: 'deepLink');
-//   }
+  // 현재 날짜 및 시간 가져오기
+  tz.initializeTimeZones();
+  tz.setLocalLocation(tz.getLocation('Asia/Seoul'));
+  tz.TZDateTime now = tz.TZDateTime.now(tz.local);
+  for (int i = 0; i <= 5 - now.weekday; i++) {
+    int dayToAdd = i;
 
-Future<void> selectedDatePushAlarm() async {
-    FlutterLocalNotificationsPlugin _localNotification =
-        FlutterLocalNotificationsPlugin();
+  int nextMonth = now.month;
+  int nextYear = now.year;
 
-  tz.TZDateTime scheduledDate = _timeZoneSetting(hour: 9, minute: 38, day: 29, month: 11);
-  await _localNotification.zonedSchedule(
-      1,
-      '로컬 푸시 알림 2',
-      '특정 날짜 / 시간대 전송 알림',
+  // 달이 넘어가거나 년도가 바뀌는 경우에 대한 처리
+  if (now.day + i > DateTime(now.year, now.month + 1, 0).day) {
+    dayToAdd = dayToAdd - DateTime(now.year, now.month + 1, 0).day;
+    nextMonth += 1;
+    if (nextMonth > 12) {
+      nextMonth = 1;
+      nextYear += 1;
+    }
+  }
+
+  int nextDay = now.day + dayToAdd;
+
+  tz.TZDateTime scheduledDate = tz.TZDateTime(
+    tz.local,
+    nextYear,
+    nextMonth,
+    nextDay,
+    10,
+    50,
+  );
+
+  print("${scheduledDate.year}년/${scheduledDate.month}월/${scheduledDate.day}일/10:50 에 알람이 설정됩니다.");
+
+    // 해당 일자에 울릴 알람 예약
+    await _localNotification.zonedSchedule(
+      i, // 고유한 ID로 일자를 사용
+      '이번주 알림',
+      await getMenuNotificationMessage(scheduledDate), // 알림 내용 생성
       scheduledDate,
       _details,
       uiLocalNotificationDateInterpretation:
@@ -541,4 +588,32 @@ Future<void> selectedDatePushAlarm() async {
       androidAllowWhileIdle: true,
     );
   }
+}
 
+Future<String> getMenuNotificationMessage(tz.TZDateTime scheduledDate) async {
+  List<Content> menuList = await getMenuDataFromFirestore(scheduledDate);
+
+  // "제육"을 포함하고 있는지 여부 확인
+  bool isPorkIncluded = menuList.any((content) =>
+      content.menuLines.any((line) => line.toLowerCase().contains('제육')));
+
+  // 알림 내용 생성
+  String message = isPorkIncluded ? '포함' : '불포함';
+
+  return '이번주 메뉴에 "제육"이 $message되어 있습니다.';
+}
+
+Future<List<Content>> getMenuDataFromFirestore(tz.TZDateTime scheduledDate) async {
+  var firestore = FirebaseFirestore.instance;
+
+  var query = firestore.collection('Menu')
+      .where('selectedDate', isEqualTo: DateFormat('MM-dd').format(scheduledDate));
+
+  var snapshot = await query.get();
+
+  List<Content> menuList = snapshot.docs
+      .map((doc) => Content.fromJson(doc.data() as Map<String, dynamic>))
+      .toList();
+
+  return menuList;
+}
