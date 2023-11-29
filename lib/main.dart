@@ -5,12 +5,24 @@ import 'package:table_calendar/table_calendar.dart';
 import 'student_menu.dart';
 import 'snack_bar_menu.dart';
 import 'staff_menu.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 
 void main() async{
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform
     );
+  
+  try {
+    _initLocalNotification();
+    await selectedDatePushAlarm();
+  } catch (e) {
+    print('Error scheduling alarm: $e');
+  }
+  
+
   runApp(const MaterialApp(
     home: MyHomePage(title: '학식 캘린더'),
   ));
@@ -36,6 +48,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  
 
   @override
   Widget build(BuildContext context) {
@@ -165,6 +178,7 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
     );
   }
+  
   void onDaySelected(DateTime selectedDate, DateTime focusedDate) {
     setState(() {
       _selectedDate = selectedDate;
@@ -263,6 +277,7 @@ class AlarmListPage extends StatefulWidget {
 }
 
 class _AlarmListPageState extends State<AlarmListPage> {
+
   final List<Map<String, dynamic>> _alarmList = [
     {"id": 1, "menu": "제육"},
   ];
@@ -388,3 +403,76 @@ class _AlarmListPageState extends State<AlarmListPage> {
     );
   }
 }
+
+tz.TZDateTime _timeZoneSetting({
+    required int hour,
+    required int minute,
+    required int day,
+    required int month,
+  }) {
+    tz.initializeTimeZones();
+    tz.setLocalLocation(tz.getLocation('Asia/Seoul'));
+    tz.TZDateTime _now = tz.TZDateTime.now(tz.local);
+    tz.TZDateTime scheduledDate =
+        tz.TZDateTime(tz.local, _now.year, _now.month, _now.day, hour, minute);
+
+    return scheduledDate;
+  }  
+
+Future<void> _initLocalNotification() async {
+    FlutterLocalNotificationsPlugin _localNotification =
+        FlutterLocalNotificationsPlugin();
+    AndroidInitializationSettings initSettingsAndroid =
+        const AndroidInitializationSettings('@mipmap/ic_launcher');
+    DarwinInitializationSettings initSettingsIOS =
+        const DarwinInitializationSettings(
+      requestSoundPermission: false,
+      requestBadgePermission: false,
+      requestAlertPermission: false,
+    );
+    InitializationSettings initSettings = InitializationSettings(
+      android: initSettingsAndroid,
+      iOS: initSettingsIOS,
+    );
+    await _localNotification.initialize(
+      initSettings,
+    );
+  }
+
+NotificationDetails _details = const NotificationDetails(
+      android: AndroidNotificationDetails('alarm 1', '1번 푸시'),
+      iOS: DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      ),
+    );  
+
+Future<void> showPushAlarm() async {
+    FlutterLocalNotificationsPlugin _localNotification =
+        FlutterLocalNotificationsPlugin();
+
+    await _localNotification.show(0, 
+    '로컬 푸시 알림', 
+    '로컬 푸시 알림 테스트',
+    _details,
+    payload: 'deepLink');
+  }
+
+Future<void> selectedDatePushAlarm() async {
+    FlutterLocalNotificationsPlugin _localNotification =
+        FlutterLocalNotificationsPlugin();
+
+  tz.TZDateTime scheduledDate = _timeZoneSetting(hour: 9, minute: 38, day: 29, month: 11);
+  await _localNotification.zonedSchedule(
+      1,
+      '로컬 푸시 알림 2',
+      '특정 날짜 / 시간대 전송 알림',
+      scheduledDate,
+      _details,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      androidAllowWhileIdle: true,
+    );
+  }
+

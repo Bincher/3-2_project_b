@@ -1,7 +1,5 @@
 // snack_bar_menu.dart
-
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:html/parser.dart';
 import 'package:intl/intl.dart';
