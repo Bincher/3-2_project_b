@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_fb/firebase_options.dart';
@@ -8,6 +10,7 @@ import 'staff_menu.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async{
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,6 +44,7 @@ class _MyHomePageState extends State<MyHomePage> {
   String? formattedDate;
   int _currentIndex = 0;
   DateTime? selectedDate = DateTime.now();  //날짜 클릭하면 파란색 동그라미 쓸려고 추가함
+  late SharedPreferences _prefs;
   void _toggleButtons(DateTime selectedDate, DateTime focusedDate) {
     setState(() {
       showButtons = true; // 학식, 교직, 분식 버튼이 표시하도록 변경
@@ -48,7 +52,10 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  
+  Future<void> _initSharedPreferences() async {
+    _prefs = await SharedPreferences.getInstance();
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -276,19 +283,39 @@ class AlarmListPage extends StatefulWidget {
   State<AlarmListPage> createState() => _AlarmListPageState();
 }
 
+// 데이터 저장은 크롬에선 X, 안드로이드등의 디바이스에서만 가능
 class _AlarmListPageState extends State<AlarmListPage> {
-
-  final List<Map<String, dynamic>> _alarmList = [
-    {"id": 1, "menu": "제육"},
-  ];
+  late SharedPreferences _prefs;
+  final TextEditingController _alarmTextController = TextEditingController();
 
   List<Map<String, dynamic>> _foundAlarms = [];
-  final TextEditingController _alarmTextController = TextEditingController();
+  final List<Map<String, dynamic>> _alarmList = [];
 
   @override
   void initState() {
     super.initState();
-    _foundAlarms = List.from(_alarmList);
+    _initSharedPreferences();
+  }
+
+  Future<void> _initSharedPreferences() async {
+    _prefs = await SharedPreferences.getInstance();
+    _loadAlarmData();
+  }
+
+  void _loadAlarmData() {
+    final List<String>? alarmListJson = _prefs.getStringList('alarmList');
+
+    if (alarmListJson != null) {
+      // 저장된 알람 목록을 불러와서 업데이트합니다.
+      print("_loadAlarmData:${alarmListJson}");
+      setState(() {
+        _alarmList.clear();
+        _alarmList.addAll(alarmListJson.map((jsonString) => json.decode(jsonString)));
+        _foundAlarms = List.from(_alarmList);
+      });
+    }else{
+      print("_loadAlarmData:목록 없음");
+    }
   }
 
   void _runFilter(String enteredKeyword) {
@@ -297,8 +324,7 @@ class _AlarmListPageState extends State<AlarmListPage> {
         _foundAlarms = List.from(_alarmList);
       } else {
         _foundAlarms = _alarmList
-            .where((menu) =>
-            menu["menu"].toLowerCase().contains(enteredKeyword.toLowerCase()))
+            .where((menu) => menu["menu"].toLowerCase().contains(enteredKeyword.toLowerCase()))
             .toList();
       }
     });
@@ -314,6 +340,45 @@ class _AlarmListPageState extends State<AlarmListPage> {
         _foundAlarms.add(newAlarmItem);
         _alarmTextController.clear();
       });
+      print("_addAlarm : ${newAlarmItem}");
+
+      // 추가된 알람을 저장하는 기능 추가
+      List<String>? alarmListJson = _prefs.getStringList('alarmList');
+      print("_addAlarm : 저장전 $alarmListJson");
+      if (alarmListJson == null) {
+        // 저장된 알람 목록이 없으면 새로 생성합니다.
+        alarmListJson = [];
+      }
+
+      // 새로 추가된 알람을 JSON 형식으로 변환하여 목록에 추가합니다.
+      final String newAlarmJson = json.encode(newAlarmItem);
+      alarmListJson.add(newAlarmJson);
+
+      print("_addAlarm : 저장후 $alarmListJson");
+      // 변경된 알람 목록을 다시 SharedPreferences에 저장합니다.
+      _prefs.setStringList('alarmList', alarmListJson);
+
+      _loadAlarmData();
+    }
+  }
+
+  void _deleteAlarm(Map<String, dynamic> alarm) {
+    setState(() {
+      _foundAlarms.remove(alarm);
+      _alarmList.remove(alarm);
+    });
+
+    // 삭제된 알람을 저장하는 기능 추가
+
+    List<String>? alarmListJson = _prefs.getStringList('alarmList');
+
+    if (alarmListJson != null) {
+      // 삭제할 알람을 JSON 형식으로 변환하여 목록에서 제거합니다.
+      final String alarmJson = json.encode(alarm);
+      alarmListJson.remove(alarmJson);
+
+      // 변경된 알람 목록을 다시 SharedPreferences에 저장합니다.
+      _prefs.setStringList('alarmList', alarmListJson);
     }
   }
 
@@ -383,6 +448,7 @@ class _AlarmListPageState extends State<AlarmListPage> {
                           setState(() {
                             _foundAlarms.remove(alarm);
                             _alarmList.remove(alarm);
+                            _deleteAlarm(alarm);
                           });
                         },
                       ),
@@ -448,16 +514,16 @@ NotificationDetails _details = const NotificationDetails(
       ),
     );  
 
-Future<void> showPushAlarm() async {
-    FlutterLocalNotificationsPlugin _localNotification =
-        FlutterLocalNotificationsPlugin();
+// Future<void> showPushAlarm() async {
+//     FlutterLocalNotificationsPlugin _localNotification =
+//         FlutterLocalNotificationsPlugin();
 
-    await _localNotification.show(0, 
-    '로컬 푸시 알림', 
-    '로컬 푸시 알림 테스트',
-    _details,
-    payload: 'deepLink');
-  }
+//     await _localNotification.show(0, 
+//     '로컬 푸시 알림', 
+//     '로컬 푸시 알림 테스트',
+//     _details,
+//     payload: 'deepLink');
+//   }
 
 Future<void> selectedDatePushAlarm() async {
     FlutterLocalNotificationsPlugin _localNotification =
