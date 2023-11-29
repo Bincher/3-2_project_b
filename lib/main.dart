@@ -49,6 +49,7 @@ void main() async{
   
   try {
     _initLocalNotification();
+    await weeklyMondayPushAlarm();
     await scheduleWeeklyAlarm(); 
   } catch (e) {
     print('Error scheduling alarm: $e');
@@ -550,32 +551,34 @@ Future<void> scheduleWeeklyAlarm() async {
   for (int i = 0; i <= 5 - now.weekday; i++) {
     int dayToAdd = i;
 
-  int nextMonth = now.month;
-  int nextYear = now.year;
+    int nextMonth = now.month;
+    int nextYear = now.year;
 
-  // 달이 넘어가거나 년도가 바뀌는 경우에 대한 처리
-  if (now.day + i > DateTime(now.year, now.month + 1, 0).day) {
-    dayToAdd = dayToAdd - DateTime(now.year, now.month + 1, 0).day;
-    nextMonth += 1;
-    if (nextMonth > 12) {
-      nextMonth = 1;
-      nextYear += 1;
+    // 달이 넘어가거나 년도가 바뀌는 경우에 대한 처리
+    if (now.day + i > DateTime(now.year, now.month + 1, 0).day) {
+      dayToAdd = dayToAdd - DateTime(now.year, now.month + 1, 0).day;
+      nextMonth += 1;
+      if (nextMonth > 12) {
+        nextMonth = 1;
+        nextYear += 1;
+      }
     }
-  }
 
-  int nextDay = now.day + dayToAdd;
+    int nextDay = now.day + dayToAdd;
 
-  tz.TZDateTime scheduledDate = tz.TZDateTime(
-    tz.local,
-    nextYear,
-    nextMonth,
-    nextDay,
-    10,
-    50,
-  );
+    tz.TZDateTime scheduledDate = tz.TZDateTime(
+      tz.local,
+      nextYear,
+      nextMonth,
+      nextDay,
+      10,
+      50,
+    );
 
-  print("${scheduledDate.year}년/${scheduledDate.month}월/${scheduledDate.day}일/10:50 에 알람이 설정됩니다.");
-
+    print("${scheduledDate.year}년/${scheduledDate.month}월/${scheduledDate.day}일/10:50 에 알람이 설정됩니다.");
+    
+    // 확인 
+    await  _localNotification.cancel(i);
     // 해당 일자에 울릴 알람 예약
     await _localNotification.zonedSchedule(
       i, // 고유한 ID로 일자를 사용
@@ -590,20 +593,31 @@ Future<void> scheduleWeeklyAlarm() async {
   }
 }
 
+
 Future<String> getMenuNotificationMessage(tz.TZDateTime scheduledDate) async {
   List<Content> menuList = await getMenuDataFromFirestore(scheduledDate);
+  late SharedPreferences _prefs; 
+  _prefs = await SharedPreferences.getInstance();
+  final List<String>? alarmListJson = _prefs.getStringList('alarmList');
+  
+  if (alarmListJson != null && alarmListJson.isNotEmpty) {
+    for (String alarmJson in alarmListJson) {
+      Map<String, dynamic> alarm = json.decode(alarmJson);
 
-  // "제육"을 포함하고 있는지 여부 확인
-  bool isPorkIncluded = menuList.any((content) =>
-      content.menuLines.any((line) => line.toLowerCase().contains('제육')));
+      bool isMenuIncluded = menuList.any((content) =>
+          content.menuLines.any((line) => line.toLowerCase().contains(alarm['menu'].toLowerCase())));
 
-  // 알림 내용 생성
-  String message = isPorkIncluded ? '포함' : '불포함';
+      if (isMenuIncluded) {
+        return '이번주 메뉴에 "${alarm['menu']}"이 포함되어 있습니다.';
+      }
+    }
+  }
 
-  return '이번주 메뉴에 "제육"이 $message되어 있습니다.';
+  return '이번주 메뉴에 저장한 알람 목록의 메뉴 중에서 포함된 항목이 없습니다.';
 }
 
 Future<List<Content>> getMenuDataFromFirestore(tz.TZDateTime scheduledDate) async {
+
   var firestore = FirebaseFirestore.instance;
 
   var query = firestore.collection('Menu')
@@ -616,4 +630,38 @@ Future<List<Content>> getMenuDataFromFirestore(tz.TZDateTime scheduledDate) asyn
       .toList();
 
   return menuList;
+}
+
+Future<void> weeklyMondayPushAlarm() async {
+  FlutterLocalNotificationsPlugin _localNotification =
+      FlutterLocalNotificationsPlugin();
+
+  tz.initializeTimeZones();
+  tz.setLocalLocation(tz.getLocation('Asia/Seoul'));
+
+  // 현재 날짜 및 시간 가져오기
+  tz.TZDateTime now = tz.TZDateTime.now(tz.local);
+
+  // 현재 시간을 기준으로 다음 주 월요일로 설정
+  tz.TZDateTime nextMonday = tz.TZDateTime(
+    tz.local,
+    now.year,
+    now.month,
+    now.day + (8 - now.weekday),
+    9,
+    0,
+  );
+
+  // 해당 일자에 울릴 알람 예약
+  await _localNotification.zonedSchedule(
+    1,
+    '매주 월요일 9시 알림',
+    '매주 월요일 9시에 전송되는 알림',
+    nextMonday,
+    _details,
+    uiLocalNotificationDateInterpretation:
+        UILocalNotificationDateInterpretation.absoluteTime,
+    matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+    androidAllowWhileIdle: true,
+  );
 }
