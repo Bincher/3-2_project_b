@@ -49,7 +49,7 @@ void main() async{
   
   try {
     _initLocalNotification();
-    await weeklyMondayPushAlarm();
+    //await weeklyMondayPushAlarm();
     await scheduleWeeklyAlarm(); 
   } catch (e) {
     print('Error scheduling alarm: $e');
@@ -571,14 +571,13 @@ Future<void> scheduleWeeklyAlarm() async {
       nextYear,
       nextMonth,
       nextDay,
+      8,
       10,
-      50,
     );
 
-    print("${scheduledDate.year}년/${scheduledDate.month}월/${scheduledDate.day}일/10:50 에 알람이 설정됩니다.");
     
-    // 확인 
-    await  _localNotification.cancel(i);
+    
+    
     // 해당 일자에 울릴 알람 예약
     await _localNotification.zonedSchedule(
       i, // 고유한 ID로 일자를 사용
@@ -590,6 +589,8 @@ Future<void> scheduleWeeklyAlarm() async {
           UILocalNotificationDateInterpretation.absoluteTime,
       androidAllowWhileIdle: true,
     );
+
+    print("${scheduledDate.year}년/${scheduledDate.month}월/${scheduledDate.day}일/10:50 에 알람이 설정됩니다.");
   }
 }
 
@@ -608,12 +609,13 @@ Future<String> getMenuNotificationMessage(tz.TZDateTime scheduledDate) async {
           content.menuLines.any((line) => line.toLowerCase().contains(alarm['menu'].toLowerCase())));
 
       if (isMenuIncluded) {
-        return '이번주 메뉴에 "${alarm['menu']}"이 포함되어 있습니다.';
+        print("메뉴가 포함된걸 확인했습니다.");
+        return '오늘 학우께서 좋아하시는 메뉴가 있네요 :)\n앱에 들어가 확인해보세요!';
       }
     }
   }
-
-  return '이번주 메뉴에 저장한 알람 목록의 메뉴 중에서 포함된 항목이 없습니다.';
+  print("메뉴가 포함안된걸 확인했습니다.");
+  return '오늘 학우께서 좋아하시는 메뉴가 없네요 :)\n앱에서 분식당 메뉴를 확인해보세요!';
 }
 
 Future<List<Content>> getMenuDataFromFirestore(tz.TZDateTime scheduledDate) async {
@@ -624,11 +626,12 @@ Future<List<Content>> getMenuDataFromFirestore(tz.TZDateTime scheduledDate) asyn
       .where('selectedDate', isEqualTo: DateFormat('MM-dd').format(scheduledDate));
 
   var snapshot = await query.get();
-
+  
   List<Content> menuList = snapshot.docs
       .map((doc) => Content.fromJson(doc.data() as Map<String, dynamic>))
       .toList();
 
+  print(menuList);
   return menuList;
 }
 
@@ -648,8 +651,8 @@ Future<void> weeklyMondayPushAlarm() async {
     now.year,
     now.month,
     now.day + (8 - now.weekday),
-    9,
-    0,
+    8,
+    00,
   );
 
   // 해당 일자에 울릴 알람 예약
