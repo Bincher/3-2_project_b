@@ -206,14 +206,14 @@ class InputScreenState extends State<InputScreen> {
     getTodayMenu();
     return Scaffold(
       appBar: AppBar(
-        title: Text('Store, Storage Test'),
+        title: Text('파이어베이스 데이터 추가 및 삭제'),
         actions: <Widget>[
           IconButton(
-            icon: const Icon(Icons.photo_album),
+            icon: const Icon(Icons.file_download),
             onPressed: getData,
           ),
           IconButton(
-            icon: const Icon(Icons.file_download),
+            icon: const Icon(Icons.delete),
             onPressed: deleteAllData,
           ),
         ],

@@ -1,9 +1,9 @@
-// student_menu.dart
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' show parse;
 import 'package:intl/intl.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 void main() {
   runApp(MyApp());
@@ -34,37 +34,6 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-class MenuFetcher {
-  static Future<Map<String, dynamic>> fetchMenuDataFromFirestore(DateTime selectedDate, int time) async {
-    try {
-      final today = DateFormat('MM-dd').format(selectedDate);
-
-      final QuerySnapshot<Map<String, dynamic>> snapshot = await FirebaseFirestore.instance
-        .collection('Menu')
-        .where('selectedDate', isEqualTo: today)
-        .where('selectedLocation', isEqualTo: 'student') // 추가 조건
-        .where('time', isEqualTo: time)
-        .get();
-
-      if (snapshot.docs.isNotEmpty) {
-        final doc = snapshot.docs.first;
-        final data = doc.data();
-
-        return {
-          'menuLines': List<String>.from(data['menuLines']),
-          'selectedDate': data['selectedDate'],
-          'selectedLocation': data['selectedLocation'],
-          'time': data['time'],
-        };
-      } else {
-        return {'error': '해당 날짜의 메뉴가 존재하지 않습니다.'};
-      }
-
-    } catch (e) {
-      return {'error': '오류: $e'};
-    }
-  }
-}
 
 class MyListWidget extends StatefulWidget {
   final DateTime selectedDate;
@@ -78,8 +47,8 @@ class MyListWidget extends StatefulWidget {
 }
 
 class _MyListWidgetState extends State<MyListWidget> {
-  Map<String, dynamic> menuDataBreakfast = {'menuLines': ["로딩 중..."], 'selectedLocation': "snack", 'time': "."};
-  Map<String, dynamic> menuDataLunch = {'menuLines': ["로딩 중..."], 'selectedLocation': "snack", 'time': "."};
+  String breakfastData = "로딩 중..."; // 상단 컨테이너 데이터
+  String lunchData = "로딩 중..."; // 하단 컨테이너 데이터
 
   @override
   void initState() {
@@ -89,39 +58,67 @@ class _MyListWidgetState extends State<MyListWidget> {
 
   void fetchMenuData() async {
     try {
-      final dataBreakfast = await MenuFetcher.fetchMenuDataFromFirestore(widget.selectedDate, 1);
-      final dataLunch = await MenuFetcher.fetchMenuDataFromFirestore(widget.selectedDate, 2);
-      print("Fetched menu data: $dataBreakfast");
-      print("Fetched menu data: $dataLunch");
-      setState(() {
-          menuDataBreakfast = dataBreakfast;
-          menuDataLunch = dataLunch;
-      });
-    } catch (e) {
-        // 에러 발생 시 에러를 추가
+      final response = await http.get(
+        Uri.parse('https://www.kumoh.ac.kr/ko/restaurant01.do?mode=menuList&srDt=${DateFormat('yyyy').format(widget.selectedDate)}-${DateFormat('MM').format(widget.selectedDate)}-${DateFormat('dd').format(widget.selectedDate)}'),
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final document = parse(response.body);
+        final breakfastElements = document.querySelectorAll(".menu-list-box table tbody tr:nth-child(1) td:nth-child(${widget.selectedDate.weekday * 2 - 1})");
+        final lunchElements = document.querySelectorAll(".menu-list-box table tbody tr:nth-child(3) td:nth-child(${widget.selectedDate.weekday * 2 - 1})");
+
+
+        if (breakfastElements.isNotEmpty) {
+          final breakfastMenu = breakfastElements[0].text;
+          final modifiedBreakfastMenu = breakfastMenu.replaceAll(RegExp(r'\s{2,}'), '\n');
+          setState(() {
+            breakfastData = modifiedBreakfastMenu;
+          });
+        } else {
+          setState(() {
+            breakfastData = "데이터가 존재하지 않습니다.";
+          });
+        }
+
+        if (lunchElements.isNotEmpty) {
+          final lunchMenu = lunchElements[0].text;
+          final modifiedLunchMenu = lunchMenu.replaceAll(RegExp(r'\s{2,}'), '\n');
+          setState(() {
+            lunchData = modifiedLunchMenu;
+          });
+        } else {
+          setState(() {
+            lunchData = "데이터가 존재하지 않습니다.";
+          });
+        }
+
+        // Convert menu data to JSON format
+        Map<String, dynamic> jsonData = {
+          'breakfastData': breakfastData,
+          'lunchData': lunchData,
+          'selectedDate': DateFormat('yyyy-MM-dd').format(widget.selectedDate),
+        };
+        String jsonString = jsonEncode(jsonData);
+        print(jsonString);
+      } else {
         setState(() {
-          menuDataBreakfast = {'error': '오류: $e'};
-          menuDataLunch = {'error': '오류: $e'};
+          breakfastData = "데이터를 가져오는 중 오류가 발생했습니다.";
+          lunchData = "데이터를 가져오는 중 오류가 발생했습니다.";
         });
       }
+    } catch (e) {
+      setState(() {
+        breakfastData = "오류: $e";
+        lunchData = "오류: $e";
+      });
     }
-
+  }
 
   @override
   Widget build(BuildContext context) {
-    String foodDataBreakfast;
-    String foodDataLunch;
-    if (menuDataBreakfast.containsKey('error')) {
-      foodDataBreakfast = menuDataBreakfast['error'];
-    } else {
-      foodDataBreakfast = menuDataBreakfast['menuLines'].join('\n');
-    }
-    if (menuDataLunch.containsKey('error')) {
-      foodDataLunch = menuDataLunch['error'];
-    } else {
-      foodDataLunch = menuDataLunch['menuLines'].join('\n');
-    }
-
     return Scaffold(
       appBar: PreferredSize(
         preferredSize: Size.fromHeight(48.0),
@@ -169,7 +166,7 @@ class _MyListWidgetState extends State<MyListWidget> {
                   child: Padding(
                     padding: const EdgeInsets.all(8.0),
                     child: Text(
-                      foodDataBreakfast,
+                      breakfastData,
                       style: TextStyle(fontSize: 16.0, color: Colors.black),
                     ),
                   ),
@@ -208,7 +205,7 @@ class _MyListWidgetState extends State<MyListWidget> {
                   child: Padding(
                     padding: const EdgeInsets.all(8.0),
                     child: Text(
-                      foodDataLunch,
+                      lunchData,
                       style: TextStyle(fontSize: 16.0, color: Colors.black),
                     ),
                   ),
